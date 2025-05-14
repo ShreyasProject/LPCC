@@ -1,0 +1,1318 @@
+Run python and lex
+Symbol
+Mnt,mnd
+Lex for code
+Lex for english
+Remaining lex - expression, upper to lower, Pune,sqrt,sin,pow,
+3 address code
+
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------
+Run python and lex
+
+PYTHON 
+Navigate to the Directory
+Run the python file       python hello.py
+
+
+LEX
+1]INSTALL--- 
+sudo apt update
+sudo apt install flex bison
+2]write a lex file sample.l
+3]Navigate to the directory
+4Generate the C source code (lex.yy.c):
+flex   sample.l
+5] Compile the generated C code using gcc--- gcc lex.yy.c -lfl -o lexer
+6] Run the Executable-- ./lexer
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Symbol , literal , intermediate , pool table
+
+
+# Defining some constants to be used throughout the code
+ad = ['START', 'END']  # 'START' and 'END' are used as labels for the start and end points of the program
+IS = ['ADD', 'MOVER', 'SUB', 'MOVEM', 'MULT', 'PRINT', 'DC', 'DS']  # List of imperative statements
+DL = ['DS', 'DC']  # 'DS' (Define Storage) and 'DC' (Define Constant) are data statements
+SYMB = ['NEXT', 'LOOP', 'LOAD']  # List of symbols used in the code
+reg = ['AREG', 'BREG', 'CREG', 'DREG']  # Register names (AREG, BREG, etc.)
+
+# Dictionaries to store symbol, literal, and pole data
+sym_dict = {}  # Dictionary to store symbols and their corresponding addresses
+lit_dict = {}  # Dictionary to store literals and their corresponding addresses
+pole_dict = {}  # New Pole Table (to store unresolved references for symbols and literals)
+
+# Function to check if any of the tokens are symbols
+def is_symbol(x):
+    for i in x:
+        if (i in SYMB):  # If the token is in the SYMB list (symbol list)
+            sym_dict[i] = (-1)  # Add it to the sym_dict with an initial address of -1
+            pole_dict[i] = "UNRESOLVED"  # Add it to the pole_dict with status 'UNRESOLVED'
+
+# Function to check if any of the tokens are literals
+def is_literal(x):
+    for i in x:
+        if (i[0] == "="):  # If the token starts with '=', it's a literal
+            lit_dict[i] = (-1)  # Add it to the lit_dict with an initial address of -1
+            pole_dict[i] = "UNRESOLVED"  # Add the literal to the pole_dict with status 'UNRESOLVED'
+
+# Function to initialize and increment the location counter (LC)
+def inc_lc(x):
+    global lc  # Declaring lc (location counter) as a global variable
+
+    if (x[0] == ad[0]):  # Check if the first token is 'START' (ad[0])
+        lc = int(x[1])  # Initialize LC to the value provided after 'START'
+        print("location_counter", lc)  # Print the initial LC value
+
+    i = x[0]  # Store the first token in variable 'i'
+
+    if (i in IS):  # If the first token is an imperative statement (from IS list)
+        lc = lc + 1  # Increment LC by 1
+
+    for i in x:  # Loop through all the tokens in the line
+        if (i in sym_dict):  # If the token is a symbol (found in sym_dict)
+            sym_dict[i] = lc  # Assign the current LC value as the address of the symbol
+            pole_dict[i] = lc  # Update the pole_dict with the resolved address
+            lc = lc + 1  # Increment LC by 1
+        if ((i == "DC") or (i == "DS")):  # If the token is a Data Statement (DC or DS)
+            if (i == "DS"):  # If it's DS (Define Storage)
+                id = x.index(i)  # Find the index of 'DS' in the list
+                lc = lc + (int(x[id + 1])) - 1  # Increment LC by the value following DS (size)
+                sym_dict[x[id - 1]] = lc  # Store the symbol's address
+                pole_dict[x[id - 1]] = lc  # Update the pole_dict with the resolved address
+                lc = lc + 1  # Increment LC by 1
+            else:  # If it's DC (Define Constant)
+                id = x.index(i)  # Find the index of 'DC' in the list
+                sym_dict[x[id - 1]] = lc  # Store the symbol's address
+                pole_dict[x[id - 1]] = lc  # Update the pole_dict with the resolved address
+                lc = lc + 1  # Increment LC by 1
+    if (i == ad[1]):  # If the first token is 'END' (ad[1])
+        for i in lit_dict:  # Loop through all literals
+            lit_dict[i] = lc  # Assign the current LC value as the address of the literal
+            pole_dict[i] = lc  # Update the pole_dict with the resolved address
+            lc = lc + 1  # Increment LC by 1
+
+# Function to generate the Literal Table
+def gen_lit_table(lit_dict):
+    with open('lit.txt', 'w') as f2:  # Open the file 'lit.txt' for writing
+        f2.write("\tLiteral Table\n")  # Write table header
+        f2.write("Name   Address\n")  # Write column headers for name and address
+        for i in lit_dict:  # Loop through the literal dictionary
+            f2.write(i + "    ")  # Write the literal name
+            f2.write(str(lit_dict[i]) + "\n")  # Write the address of the literal
+
+# Function to generate the Symbol Table
+def sym_gen():
+    with open('sym.txt', 'w') as f1:  # Open the file 'sym.txt' for writing
+        f1.write("\tSymbol Table \n")  # Write table header
+        f1.write("Name   Address\n")  # Write column headers for name and address
+        for i in sym_dict:  # Loop through the symbol dictionary
+            f1.write(i + "    ")  # Write the symbol name
+            f1.write(str(sym_dict[i]) + "\n")  # Write the address of the symbol
+
+# Function to generate the Pole Table
+def gen_pole_table(pole_dict):
+    with open('pole.txt', 'w') as f4:  # Open the file 'pole.txt' for writing
+        f4.write("\tPole Table\n")  # Write table header
+        f4.write("Name   Status\n")  # Write column headers for name and status
+        for i in pole_dict:  # Loop through the pole dictionary
+            f4.write(i + "    ")  # Write the pole name
+            f4.write(str(pole_dict[i]) + "\n")  # Write the status or address of the pole (unresolved or resolved)
+
+# Function to generate Intermediate Code
+def gen_interm_code(x):
+    for i in x:  # Loop through all tokens in the line
+        if (i in ad):  # If the token is 'START' or 'END' (from ad list)
+            if (x[0] == ad[0]):  # If it's 'START'
+                f3.write("AD 1 " + " C " + x[1])  # Write the corresponding intermediate code
+            else:  # If it's 'END'
+                f3.write("AD 02 ")
+        if (i in IS):  # If the token is an imperative statement (from IS list)
+            if (i == 'DS') or (i == 'DC'):  # If it's DC or DS
+                f3.write("DL " + str(DL.index(i)) + " C " + x[x.index(i) + 1])  # Write corresponding intermediate code
+            else:
+                f3.write("IS " + str(IS.index(i) + 1) + " ")  # Write intermediate code for imperative statement
+
+        if (i in lit_dict):  # If the token is a literal (from lit_dict)
+            f3.write(" L " + str(list(lit_dict).index(i) + 1) + " ")  # Write the index of the literal in the intermediate code
+        if ((i in sym_dict)):  # If the token is a symbol (from sym_dict)
+            f3.write(i + " ")  # Write the symbol name
+        if ((i in reg)):  # If the token is a register (from reg list)
+            f3.write(" " + i + "")  # Write the register name
+
+# Execution starts here
+file1 = open("INPUT.txt", 'r')  # Open the input file 'INPUT.txt' for reading
+lines = file1.readlines()  # Read all lines from the input file
+f3 = open("inter.txt", 'a')  # Open the output file 'inter.txt' for appending
+for line in lines:
+    x = line.split()  # Split each line into tokens
+    if (len(x) > 0):  # If there are any tokens in the line
+        is_symbol(x)  # Check if any tokens are symbols
+        is_literal(x)  # Check if any tokens are literals
+        inc_lc(x)  # Increment the location counter based on the tokens
+        gen_interm_code(x)  # Generate intermediate code
+sym_gen()  # Generate the symbol table
+gen_lit_table(lit_dict)  # Generate the literal table
+gen_pole_table(pole_dict)  # Generate the pole table
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Mnt , mnd
+
+# Open input and output files
+code = open("input.txt", "r")  # Open the input file for reading (contains assembly code with macros)
+mnt = open("mnt.txt", "a+")  # Open the MNT (Macro Name Table) file for appending
+mdt = open("mdt.txt", "a+")  # Open the MDT (Macro Definition Table) file for appending
+fpvpp = open("fpvpp", "a+")  # Open the FPVPP (Formal Parameters and Actual Parameters) file for appending
+
+mnt.write("Macro_Name \t Start-End \n")  # Write header for the MNT table
+
+# Initialize lists to store MNT and MDT information
+mntable = []  # List to store the macro names and their details in MNT
+mdtable = []  # List to store the macro definitions in MDT
+
+# Counters for tracking MNT and MDT entries
+mntp = 0  # Counter for MNT (Macro Name Table)
+mdtp = 0  # Counter for MDT (Macro Definition Table)
+
+# Flag to indicate whether we are inside a macro definition or not
+flag = False  # Initially, not inside a macro definition
+
+# Read all lines from the input code
+lines = code.readlines()
+
+# Process each line from the input code
+for l in lines:
+    x = l.split()  # Split the line into tokens (based on spaces)
+
+    if len(x) > 0:  # Check if the line contains any tokens
+
+        # Check if the line defines a new macro
+        if x[0] == "MACRO":
+            flag = True  # Set the flag to True, indicating we are inside a macro definition
+            mntp += 1  # Increment the MNT counter
+            mntable.append(x[1])  # Add the macro name to the MNT table
+            mntable.append(mdtp)  # Add the starting MDT index to the MNT table
+
+            if len(x) > 2:  # If there are parameters for the macro
+                # Compute the index for the formal parameters in FPVPP
+                l = mntp * 3
+                fpvpp.write(mntable[l - 3] + "\n")  # Write the macro name to the FPVPP file
+                # Write the formal parameters with their indices (starting from 1)
+                for i in range(2, len(x)):
+                    fpvpp.write(x[i] + " " + str(i - 1) + "\n")  # Write each parameter and its index
+                fpvpp.write("\n")  # Add a newline after the parameters
+
+        # Check if the line ends a macro definition (MEND)
+        elif x[0] == "MEND":
+            flag = False  # Set the flag to False, indicating the end of the macro definition
+            mntable.append(mdtp - 1)  # Add the ending MDT index to the MNT table
+            # Write the macro's details (name, start MDT index, and end MDT index) to the MNT file
+            l = mntp * 3
+            mnt.write(mntable[l - 3] + " " + str(mntable[l - 2]) + " " + str(mntable[l - 1]) + "\n")
+
+        # If we are inside a macro definition (flag == True)
+        elif flag == True:
+            # Write each part of the macro definition to the MDT file
+            for i in x:
+                mdt.write(str(i) + " ")  # Write each token in the macro definition
+            mdt.write(" " + str(mdtp) + "\n")  # Write the MDT index
+            mdtp += 1  # Increment the MDT counter for the next line
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+LEX for given code
+
+
+
+
+
+
+/* LEX Program to implement a lexical analyzer for C without Symbol Table */
+
+%{
+    #include <stdio.h>
+%}
+
+%%
+
+"int"|"float"|"char"|"printf" { printf("Keyword: %s\n", yytext); }
+
+[a-zA-Z_][a-zA-Z0-9_]* { printf("Identifier: %s\n", yytext); }
+
+[0-9]+ { printf("Number: %s\n", yytext); }
+
+"=" { printf("Assignment Operator: %s\n", yytext); }
+"-" { printf("Subtraction Operator: %s\n", yytext); }
+"+" { printf("Addition Operator: %s\n", yytext); }
+"*" { printf("Multiplication Operator: %s\n", yytext); }
+"/" { printf("Division Operator: %s\n", yytext); }
+
+"(" { printf("Left Parenthesis: %s\n", yytext); }
+")" { printf("Right Parenthesis: %s\n", yytext); }
+"{" { printf("Left Brace: %s\n", yytext); }
+"}" { printf("Right Brace: %s\n", yytext); }
+";" { printf("Semicolon: %s\n", yytext); }
+
+"\".*\"" { printf("String Literal: %s\n", yytext); }
+
+[ 	
+]+   { /* Ignore whitespace */ }
+
+.       { printf("Unknown: %s\n", yytext); }
+
+%%
+
+int main() {
+    printf("Enter C program code:\n");
+    yylex();
+    return 0;
+}
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+lex for English 
+
+
+Here is the provided Lex (Flex) program with detailed comments explaining each line of code:
+c
+CopyEdit
+
+
+
+
+
+%{
+/*
+* We expand upon the first example by adding recognition of other
+* parts of speech such as verbs, adverbs, conjunctions, prepositions, etc.
+* This program uses Lex (Flex) to recognize parts of speech in a given string.
+*/
+#include<stdio.h>
+%}
+
+%%
+
+/* Rule to ignore whitespace characters (tabs) */
+[\t]+       /* ignore whitespace */ ;
+
+/* Verbs: if the word is a verb, print it as a verb */
+is |
+am |
+are |
+were |
+was |
+be |
+being |
+been |
+do |
+does |
+did |
+will |
+would |
+should |
+can |
+could |
+has |
+have |
+had |
+go {
+    printf("%s: is a verb\n", yytext);  /* Print the verb */
+}
+
+/* Adverbs: if the word is an adverb, print it as an adverb */
+very |
+shrPly |
+gently |
+quietly |
+calmly |
+angrily {
+    printf ("%s: is an adverb\n", yytext); /* Print the adverb */
+}
+
+/* Prepositions: if the word is a preposition, print it as a preposition */
+to |
+from |
+behind |
+above |
+below |
+between {
+    printf ("%s: is a preposition\n", yytext); /* Print the preposition */
+}
+
+/* Conjunctions: if the word is a conjunction, print it as a conjunction */
+if |
+then |
+and |
+but |
+or {
+    printf ("%s: is a conjunction\n", yytext); /* Print the conjunction */
+}
+
+/* Adjectives: if the word is an adjective, print it as an adjective */
+their |
+my |
+Your |
+his |
+her |
+its {
+    printf("%s: is an adjective\n", yytext); /* Print the adjective */
+}
+
+/* Pronouns: if the word is a pronoun, print it as a pronoun */
+I |
+YOU |
+he |
+she |
+we |
+they {
+    printf("%s: in a pronoun\n", yytext); /* Print the pronoun */
+}
+
+/* Any alphabetic string (not recognized explicitly as a specific part of speech) 
+   might be a noun */
+[a-zA-Z]+ {
+    printf("%s: don't recognize, might be a noun\n", yytext); /* Print that the word is possibly a noun */
+}
+
+/* Default rule for any character or new line, just print the character */
+.|\n { ECHO; /* Print any character or new line by default */ }
+
+%%
+
+/* yywrap is required by Lex but not used in this program */
+int yywrap(void) {
+    return 1;  /* Return 1 to indicate end of input */
+}
+
+int main() {
+    /* Print a prompt asking for user input */
+    printf("Enter a string :- ");
+    
+    /* Call yylex() to begin lexical analysis */
+    yylex();
+    
+    return 0;  /* Return from main function */
+}
+
+
+
+
+
+Explanation of the Code:
+1.	Declarations (%{ ... %}):
+o	The part between %{ and %} is the C code that is copied into the generated C file. This includes necessary imports like stdio.h.
+2.	Lexical Rules (%%):
+o	The patterns defined inside the %% section define the rules for matching different parts of speech. Each pattern is followed by a block of C code to execute when that pattern is matched. For instance, the word is will match the pattern is and print it as a verb.
+3.	Whitespace and Default Behavior:
+o	Whitespace ([\t]+) is ignored, and any unmatched character or newline is echoed as the default action (.|\n { ECHO; }).
+4.	Lexical Analysis (yylex()):
+o	The yylex() function starts the lexical analysis, scanning the input for words that match the defined rules.
+5.	yywrap():
+o	The yywrap() function is a placeholder that Lex calls when it reaches the end of input. It returns 1 to indicate the end of input.
+6.	Main Function:
+o	The main() function prompts the user to enter a string, then invokes yylex() to start the lexical analysis.
+________________________________________
+How to Run the Program:
+Follow these steps to run the Lex program:
+1.	Install Flex (if not installed):
+o	On Ubuntu/Debian:
+bash
+CopyEdit
+sudo apt-get install flex
+o	On MacOS (using Homebrew):
+bash
+CopyEdit
+brew install flex
+2.	Create the Lex File:
+o	Save the code above into a file with a .l extension, such as part_of_speech.l.
+3.	Generate C Code:
+o	Open your terminal and navigate to the directory where the .l file is saved. Run the flex command to generate the C source code:
+bash
+CopyEdit
+flex part_of_speech.l
+o	This will create a file named lex.yy.c.
+4.	Compile the C Code:
+o	Use gcc to compile the generated C file (lex.yy.c) into an executable. You need to link the flex library (-lfl):
+bash
+CopyEdit
+gcc lex.yy.c -o lexer -lfl
+5.	Run the Program:
+o	Now, you can run the lexer:
+bash
+CopyEdit
+./lexer
+6.	Input:
+o	After running the program, it will prompt you to enter a string. For example:
+less
+CopyEdit
+Enter a string :- I am going to the park quietly.
+7.	Expected Output:
+The output will be something like:
+vbnet
+CopyEdit
+I: in a pronoun
+am: is a verb
+going: don't recognize, might be a noun
+to: is a preposition
+the: don't recognize, might be a noun
+park: don't recognize, might be a noun
+quietly: is an adverb
+This way, the Lex program identifies different parts of speech in a given input string and outputs them accordingly.
+
+
+
+
+
+Python
+
+Sure! Below is a Python version of the Lexical Analyzer for identifying parts of speech. The program uses regular expressions to match words and classify them into various parts of speech (verb, adverb, preposition, conjunction, adjective, pronoun, and noun).
+Here’s the Python code:
+python
+CopyEdit
+import re
+
+# Function to identify the part of speech
+def identify_part_of_speech(word):
+    # Define the parts of speech using regular expressions
+    verbs = ["is", "am", "are", "were", "was", "be", "being", "been", "do", "does", "did", "will", "would", "should", "can", "could", "has", "have", "had", "go"]
+    adverbs = ["very", "sharply", "gently", "quietly", "calmly", "angrily"]
+    prepositions = ["to", "from", "behind", "above", "below", "between"]
+    conjunctions = ["if", "then", "and", "but", "or"]
+    adjectives = ["their", "my", "your", "his", "her", "its"]
+    pronouns = ["I", "YOU", "he", "she", "we", "they"]
+
+    # Check if the word is a verb
+    if word in verbs:
+        return f"{word}: is a verb"
+    
+    # Check if the word is an adverb
+    if word in adverbs:
+        return f"{word}: is an adverb"
+    
+    # Check if the word is a preposition
+    if word in prepositions:
+        return f"{word}: is a preposition"
+    
+    # Check if the word is a conjunction
+    if word in conjunctions:
+        return f"{word}: is a conjunction"
+    
+    # Check if the word is an adjective
+    if word in adjectives:
+        return f"{word}: is an adjective"
+    
+    # Check if the word is a pronoun
+    if word in pronouns:
+        return f"{word}: is a pronoun"
+    
+    # If the word is made up of only letters (likely a noun)
+    if re.match(r'^[a-zA-Z]+$', word):
+        return f"{word}: don't recognize, might be a noun"
+
+    # For any other characters (like punctuation or numbers)
+    return f"{word}: is an unknown part of speech"
+
+# Function to tokenize input and classify parts of speech
+def tokenize(input_text):
+    # Split the input string by whitespace or punctuation
+    words = re.findall(r'\b\w+\b', input_text)  # Use regular expression to match words
+    
+    # Identify the part of speech for each word
+    for word in words:
+        print(identify_part_of_speech(word))
+
+# Main function
+if __name__ == "__main__":
+    input_text = input("Enter a string: ")  # Take input from user
+    tokenize(input_text)  # Tokenize and classify the parts of speech
+Explanation of the Code:
+1.	Regular Expressions:
+o	The re module is used to match words in the input string. The regular expression r'\b\w+\b' matches all words consisting of alphanumeric characters and underscores, ignoring punctuation marks.
+2.	Parts of Speech Classification:
+o	The program checks if the word belongs to one of the predefined lists (verbs, adverbs, prepositions, conjunctions, adjectives, pronouns).
+o	If the word does not match any of the categories, the program assumes that it could be a noun (based on the fact that it is a word consisting of letters).
+3.	Input and Output:
+o	The program takes a string input from the user, tokenizes it into words, and classifies each word according to its part of speech.
+How to Run It:
+1.	Save the code in a file, e.g., part_of_speech.py.
+2.	Open a terminal or command prompt.
+3.	Run the script by executing:
+bash
+CopyEdit
+python part_of_speech.py
+4.	Enter a sentence when prompted, and the program will classify the parts of speech for each word in the sentence.
+Example:
+For the input:
+less
+CopyEdit
+Enter a string: I am going to the store
+The output would be:
+vbnet
+CopyEdit
+I: is a pronoun
+am: is a verb
+going: don't recognize, might be a noun
+to: is a preposition
+the: don't recognize, might be a noun
+store: don't recognize, might be a noun
+This code can be expanded further by adding more parts of speech or more complex logic if needed.
+
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+Remaning lex problem
+
+
+
+
+
+
+
+
+
+
+
+
+1]0.33*12-4-4+(3*2)
+
+1]Install-sudo apt update
+                 sudo apt install flex bison
+2]Save ycc file--arith.y
+3]Yacc code-
+/* YACC Program to evaluate arithmetic expressions with precedence and associativity */
+
+%{
+    #include <stdio.h>  /* Standard Input/Output Library */
+    #include <stdlib.h> /* Standard Library for exit() and atof() */
+%}
+
+%token NUMBER  /* Define token for numeric values */
+
+/* Operator precedence and associativity */
+%left '-' '+'  /* Addition and Subtraction have equal precedence */
+%left '*' '/'  /* Multiplication and Division have higher precedence */
+
+%%
+
+/* Grammar rules and semantic actions */
+expression:
+      expression '+' expression { /* Addition */
+        $$ = $1 + $3;
+        printf("Result: %f\n", $$);
+      }
+    | expression '-' expression { /* Subtraction */
+        $$ = $1 - $3;
+        printf("Result: %f\n", $$);
+      }
+    | expression '*' expression { /* Multiplication */
+        $$ = $1 * $3;
+        printf("Result: %f\n", $$);
+      }
+    | expression '/' expression { /* Division with error handling */
+        if ($3 == 0) {
+            printf("Error: Division by zero\n");
+            exit(1);
+        }
+        $$ = $1 / $3;
+        printf("Result: %f\n", $$);
+      }
+    | '(' expression ')' { /* Parenthesized expression */
+        $$ = $2;
+      }
+    | NUMBER { /* Numeric value */
+        $$ = atof(yytext);
+      }
+;
+
+%%
+
+/* Include the Lex file */
+#include "lex.yy.c"
+
+/* Main function to start parsing */
+int main() {
+    printf("Enter an arithmetic expression:\n");
+    yyparse();  /* Call the parser */
+    return 0;
+}
+
+/* Error handling function */
+int yyerror(char *s) {
+    fprintf(stderr, "Error: %s\n", s);
+    return 0;
+}
+
+4] save lex program --arith.l
+/* Lexical Analyzer for Arithmetic Expressions */
+
+%{
+    #include "y.tab.h"  /* Include the header file generated by YACC */
+%}
+
+%%
+
+/* Match numeric values, including integers and floating-point numbers */
+[0-9]+(\.[0-9]+)?  { 
+    yylval = atof(yytext);  /* Convert matched text to a floating-point number */
+    return NUMBER;  /* Return the NUMBER token to YACC */
+}
+
+/* Ignore whitespace characters (spaces, tabs, and newlines) */
+[ \t\n]+  { /* No action, just ignore */ }
+
+/* Match any single character and return it to YACC for further processing */
+.  { return yytext[0]; }
+
+%%
+
+
+5] Compile the Lex and YACC Programs:
+1) Generate the YACC source file (y.tab.c and y.tab.h--yacc -d arith.y[-d generates the header file y.tab.h.]
+2) Generate the Lex source file-flex arith.l
+3)Compile the generated C filesgcc y.tab.c lex.yy.c -o arith -lm[-lm is used to link the math library.]
+
+6] Run the Program:
+---./arith
+Now, enter the input expression---0.33*12-4-4+(3*2)
+
+
+2] upper to lower and vice versa
+Lex File (lexer.l)
+
+%{
+#include "y.tab.h"  // Include the header file generated by YACC. This contains definitions of the tokens used by YACC.
+%}
+
+%%
+
+/*
+ * This section defines the rules for tokenizing input characters.
+ * Each rule tells the lexer how to identify and classify characters
+ * from the input stream.
+ */
+
+// Rule to identify lowercase letters (a-z)
+[a-z]   { 
+    // When a lowercase letter is found, return the token 'LOWERCASE' to YACC.
+    return LOWERCASE; 
+}
+
+// Rule to identify uppercase letters (A-Z)
+[A-Z]   { 
+    // When an uppercase letter is found, return the token 'UPPERCASE' to YACC.
+    return UPPERCASE; 
+}
+
+// Rule to handle the newline character '\n' (end of a line)
+\n      { 
+    // When a newline is encountered, return 0 (this signals the end of input to YACC).
+    return 0; 
+}
+
+// Rule to ignore any other characters (such as spaces, punctuation, etc.)
+.       { 
+    // Ignore any non-alphabet characters by returning 0 (no action for other characters).
+    return 0; 
+}
+
+%%
+
+/*
+ * This function is required by Lex. It is called when the lexer
+ * reaches the end of the input. Returning 1 indicates the end
+ * of the input stream.
+ */
+int yywrap() {
+    return 1;  // Indicating that there's no more input to process.
+}
+
+
+
+2]YACC FILE(parser.y)
+%{
+#include <stdio.h>     // Standard I/O functions
+#include <ctype.h>     // Provides functions like toupper() and tolower() for character case conversion
+
+// Define tokens that will be returned by the Lex scanner
+#define LOWERCASE 1
+#define UPPERCASE 2
+%}
+
+// Declare the tokens to YACC
+%token LOWERCASE
+%token UPPERCASE
+
+%%
+
+/*
+ * Grammar Rules Section
+ * This section defines how sequences of tokens are interpreted.
+ */
+
+// 'input' is the start symbol. It allows multiple lines of input.
+input:
+      /* empty */       // Allow empty input
+    | input line        // Process multiple lines by recursively calling 'input'
+    ;
+
+// Each 'line' consists of either a LOWERCASE or an UPPERCASE character
+line:
+      LOWERCASE   { 
+          // Convert lowercase character to uppercase and print
+          printf("%c", toupper(yytext[0])); 
+      }
+    | UPPERCASE   { 
+          // Convert uppercase character to lowercase and print
+          printf("%c", tolower(yytext[0])); 
+      }
+    ;
+
+%%
+
+/*
+ * C Code Section
+ * This section contains the main function and error handling.
+ */
+
+int main() {
+    printf("Enter a string: ");
+    yyparse();  // Begin parsing input using the rules defined above
+    return 0;
+}
+
+// Error handling function called by YACC on parse errors
+int yyerror(char *s) {
+    printf("Error: %s
+", s);
+    return 0;
+}
+
+
+
+
+(A)11.Write a program to evaluate a given variable name using YACC specification. SAMPLE INPUT 1) pune 2) PUNE 3) Pune1 4) pUNE_2
+
+Lex File (lex.yy.c)
+This Lex program will scan the input and check if the given variable name is valid according to C/C++ rules (starting with a letter or underscore, followed by letters, digits, or underscores).
+
+/* Lexical Analyzer for Variable Names */
+
+%{
+    #include "y.tab.h"  /* Include the header file generated by YACC */
+%}
+
+%%
+
+/* Identifier rule: Start with a letter or underscore, followed by letters, digits, or underscores */
+[a-zA-Z_][a-zA-Z0-9_]*  { 
+    return IDENTIFIER;  /* Return the IDENTIFIER token to YACC */
+}
+
+/* Ignore whitespace characters (spaces, tabs, and newlines) */
+[ \t\n]+  { /* No action, just ignore */ }
+
+/* Handle any invalid characters (any character that doesn't match the above rules) */
+.  { return yytext[0]; }
+
+%%
+
+int main() {
+    yylex();  /* Start Lex analysis */
+    return 0;
+}
+
+
+YACC File (yacc.y)
+This YACC program will evaluate the variable name and print whether it's valid or invalid
+/* YACC Program to evaluate variable names based on C/C++ identifier rules */
+
+%{
+    #include <stdio.h>  /* Standard Input/Output library */
+    #include <stdlib.h> /* Standard Library for exit() */
+%}
+
+%token IDENTIFIER
+
+%%
+
+/* Grammar rule for a valid identifier */
+identifier:
+    IDENTIFIER { 
+        printf("Valid identifier: %s\n", yytext);  /* Print if valid */
+    }
+    | error { 
+        printf("Invalid identifier: %s\n", yytext);  /* Print if invalid */
+    }
+;
+
+%%
+
+#include "lex.yy.c"  /* Include the Lex file generated by Lex */
+
+/* Main function to parse the input */
+int main() {
+    printf("Enter a variable name to evaluate:\n");
+    yyparse();  /* Call the YACC parser */
+    return 0;
+}
+
+/* Error handling function */
+int yyerror(char *s) {
+    fprintf(stderr, "%s\n", s);  /* Print any errors */
+    return 0;
+}
+
+
+C)11.Write a program to evaluate a given built-in functions using YACC specification. INPUT 1.u= sqrt(36) 2. v = strlen(“pune”)
+
+Lex File (lex.yy.c)
+This Lex program scans for function calls such as sqrt() and strlen() and handles identifiers, function names, numbers, and strings.
+/* Lexical Analyzer for Built-in Functions (sqrt, strlen) */
+
+%{
+    #include "y.tab.h"  /* Include the header file generated by YACC */
+    #include <math.h>  /* For sqrt() function */
+    #include <string.h> /* For strlen() function */
+    #include <stdio.h>
+%}
+
+%%
+
+/* Match identifiers (variable names, function names) */
+[a-zA-Z_][a-zA-Z0-9_]* {
+    yylval = strdup(yytext);  /* Store function name or variable as a string */
+    return IDENTIFIER;  /* Return IDENTIFIER token to YACC */
+}
+
+/* Match numbers */
+[0-9]+(\.[0-9]+)? {
+    yylval = atof(yytext);  /* Convert the matched number to a floating-point value */
+    return NUMBER;  /* Return the NUMBER token to YACC */
+}
+
+/* Match strings (for the second input, e.g., "pune") */
+\"[^\"]*\" {
+    yylval = strdup(yytext);  /* Store the string */
+    return STRING;  /* Return the STRING token to YACC */
+}
+
+/* Ignore whitespace characters (spaces, tabs, and newlines) */
+[ \t\n]+  { /* No action, just ignore */ }
+
+/* Handle any invalid characters */
+.  { return yytext[0]; }
+
+%%
+
+
+
+YACC File (yacc.y)
+This YACC program defines the grammar rules for handling built-in functions like sqrt() and strlen() and evaluates their results.
+/* YACC Program to evaluate built-in functions like sqrt() and strlen() */
+
+%{
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <math.h>
+    #include <string.h>
+    #include <ctype.h>
+    #include "lex.yy.c"  /* Include the Lex file generated by Lex */
+%}
+
+%token IDENTIFIER NUMBER STRING
+
+%%
+
+/* Grammar rules for evaluating built-in functions */
+statement:
+    IDENTIFIER '=' function_call {  /* Handle assignment to variables */
+        printf("%s = %f\n", $1, $3);  /* Print the result of the function call */
+    }
+;
+
+function_call:
+    IDENTIFIER '(' expression ')' {  /* Match function calls like sqrt(x), strlen("str") */
+        if (strcmp($1, "sqrt") == 0) {  /* Handle the sqrt function */
+            $$ = sqrt($3);  /* Call sqrt function */
+        } else if (strcmp($1, "strlen") == 0) {  /* Handle the strlen function */
+            $$ = strlen($3);  /* Call strlen function */
+        } else {
+            printf("Unknown function: %s\n", $1);  /* Handle unknown functions */
+            $$ = 0;
+        }
+    }
+;
+
+expression:
+    NUMBER { $$ = $1; }  /* Return the number */
+    | STRING { $$ = strlen($1); }  /* Return the length of the string */
+;
+
+%%
+
+/* Main function to start parsing */
+int main() {
+    printf("Enter an expression:\n");
+    yyparse();  /* Call the YACC parser */
+    return 0;
+}
+
+/* Error handling function */
+int yyerror(char *s) {
+    fprintf(stderr, "Error: %s\n", s);  /* Print errors */
+    return 0;
+}
+
+
+
+
+
+(D)11.Write a program to evaluate a given built-in functions using YACC specification. INPUT u= sin(12)+cos(12)
+
+YACC File(math_eval.y)
+
+%{
+    #include <stdio.h>        // Standard I/O library for printing results
+    #include <stdlib.h>       // For general utilities like atoi (converting strings to integers)
+    #include <math.h>         // For mathematical functions like sin(), cos(), etc.
+    
+    // Define the token types for the parser
+    #define NUM 1             // Token for numbers (e.g., 12)
+    #define VAR 2             // Token for variables (e.g., u)
+    #define ASSIGN 3          // Token for assignment operator '='
+    #define FUNC 4            // Token for function (e.g., sin, cos)
+
+    // Variable to store the result of the evaluation
+    double result;            // Will hold the result of the computation
+
+%}
+
+// Declare the tokens used by the lexer
+%token NUM VAR ASSIGN FUNC
+
+// Declare the types of the values to be passed between lexer and parser
+%union {
+    double num;              // Holds a numeric value
+    char var;                // Holds a single character for a variable (like 'u')
+}
+
+%%
+
+// Start symbol: This represents the assignment of a value to a variable.
+program:
+    VAR ASSIGN expression      { 
+        // Store the result of the expression in the variable 'result'
+        result = $3;
+        printf("%s = %lf\n", yytext, result);  // Print the variable name and its computed value
+    };
+
+// Expression can be a number, a function, or an operation involving numbers.
+expression:
+      NUM                       { 
+          // A number is directly returned
+          $$ = $1; 
+      }
+    | FUNC '(' expression ')'    { 
+          // Function (e.g., sin or cos) applied to an expression
+          if (strcmp(yytext, "sin") == 0)
+              $$ = sin($3);         // Evaluate sine
+          else if (strcmp(yytext, "cos") == 0)
+              $$ = cos($3);         // Evaluate cosine
+          else
+              printf("Unsupported function: %s\n", yytext); 
+      }
+    | expression '+' expression  { 
+          // Addition: add two expressions
+          $$ = $1 + $3;
+      }
+    | expression '-' expression  { 
+          // Subtraction: subtract the second expression from the first
+          $$ = $1 - $3;
+      }
+    | expression '*' expression  { 
+          // Multiplication: multiply two expressions
+          $$ = $1 * $3;
+      }
+    | expression '/' expression  { 
+          // Division: divide the first expression by the second
+          if ($3 == 0) {
+              printf("Error: Division by zero\n");
+              $$ = 0;    // Handle division by zero
+          } else {
+              $$ = $1 / $3;
+          }
+      }
+    | '(' expression ')'         { 
+          // Parentheses: evaluate the expression inside parentheses
+          $$ = $2; 
+      }
+    ;
+
+// Lexical rules
+%%
+ 
+// Error handling function in case of syntax errors
+int yyerror(const char *s) {
+    printf("Error: %s\n", s);
+    return 0;
+}
+
+// Main driver for the parser
+int main() {
+    printf("Enter an expression (e.g., u = sin(12) + cos(12)): ");
+    yyparse();    // Start parsing the input
+    return 0;
+}
+
+
+Lexical Analysis(lexer.l)
+
+%{
+#include "y.tab.h"
+%}
+
+%%
+
+[0-9]+(\.[0-9]+)?  { yylval.num = atof(yytext); return NUM; }  // Matches numbers (e.g., 12 or 3.14)
+[a-zA-Z]            { yylval.var = yytext[0]; return VAR; }      // Matches variable names (e.g., 'u')
+"="                  { return ASSIGN; }                           // Matches the assignment '='
+"sin"                { return FUNC; }                             // Matches 'sin'
+"cos"                { return FUNC; }                             // Matches 'cos'
+[ \t\n]              { /* Ignore spaces, tabs, and newlines */ }
+
+%%
+
+int yywrap() {
+    return 1;
+}
+
+
+
+E
+)11.Write a program to evaluate a given built-in functions using YACC specification. INPUT p= pow(3,2) / log (24)
+
+Lex File (lex.yy.c)
+/* Lexical Analyzer for Built-in Functions (pow, log) */
+
+%{
+    #include "y.tab.h"  /* Include the header file generated by YACC */
+    #include <math.h>   /* For pow() and log() functions */
+    #include <stdio.h>
+%}
+
+%%
+
+/* Match function names like pow, log */
+[a-zA-Z_][a-zA-Z0-9_]* {
+    yylval = strdup(yytext);  /* Store function name as a string */
+    return IDENTIFIER;  /* Return IDENTIFIER token to YACC */
+}
+
+/* Match numbers */
+[0-9]+(\.[0-9]+)? {
+    yylval = atof(yytext);  /* Convert the matched number to a floating-point value */
+    return NUMBER;  /* Return the NUMBER token to YACC */
+}
+
+/* Match operators like +, -, *, / */
+[\+\-\*/] {
+    return yytext[0];  /* Return the operator character to YACC */
+}
+
+/* Match parentheses */
+\(|\) {
+    return yytext[0];  /* Return parentheses to YACC */
+}
+
+/* Ignore whitespace characters (spaces, tabs, and newlines) */
+[ \t\n]+  { /* No action, just ignore */ }
+
+/* Handle any invalid characters */
+.  { return yytext[0]; }
+
+%%
+
+YACC File (yacc.y)
+/* YACC Program to evaluate built-in functions like pow() and log() */
+
+%{
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <math.h>
+    #include <string.h>
+    #include <ctype.h>
+    #include "lex.yy.c"  /* Include the Lex file generated by Lex */
+%}
+
+%token IDENTIFIER NUMBER
+
+%%
+
+/* Grammar rules for evaluating expressions involving built-in functions */
+
+/* Statement rule: handle assignments (e.g., p = pow(3, 2) / log(24)) */
+statement:
+    IDENTIFIER '=' expression {  /* Assign expression result to the identifier */
+        printf("%s = %f\n", $1, $3);  /* Print the result of the expression */
+    }
+;
+
+/* Expression rule: handle function calls, numbers, and operations */
+expression:
+    expression '+' term { $$ = $1 + $3; }  /* Addition */
+    | expression '-' term { $$ = $1 - $3; }  /* Subtraction */
+    | term { $$ = $1; }  /* Single term (function call or number) */
+;
+
+/* Term rule: handle multiplication, division */
+term:
+    term '*' factor { $$ = $1 * $3; }  /* Multiplication */
+    | term '/' factor { $$ = $1 / $3; }  /* Division */
+    | factor { $$ = $1; }  /* Single factor (function call or number) */
+;
+
+/* Factor rule: handle numbers, function calls, and parentheses */
+factor:
+    NUMBER { $$ = $1; }  /* A number */
+    | IDENTIFIER '(' expression ',' expression ')' {  /* Function call like pow(x, y) */
+        if (strcmp($1, "pow") == 0) {  /* Check for pow function */
+            $$ = pow($3, $5);  /* Call pow(x, y) */
+        } else if (strcmp($1, "log") == 0) {  /* Check for log function */
+            $$ = log($3);  /* Call log(x) */
+        } else {
+            printf("Unknown function: %s\n", $1);  /* Handle unknown functions */
+            $$ = 0;
+        }
+    }
+    | '(' expression ')' { $$ = $2; }  /* Parenthesized expression */
+;
+
+%%
+
+/* Main function to start parsing */
+int main() {
+    printf("Enter an expression:\n");
+    yyparse();  /* Call the YACC parser */
+    return 0;
+}
+
+/* Error handling function */
+int yyerror(char *s) {
+    fprintf(stderr, "Error: %s\n", s);  /* Print errors */
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+3 address code
+
+
+
+1] w = u * u - u * v + v * v:
+
+Code:
+# Function to generate the next temporary variable
+def generate_temp_var(counter):
+    temp_var = f"t{counter}"
+    counter += 1
+    return temp_var, counter
+
+def main():
+    # Input expression
+    expr = "w = u*u - u*v + v*v"
+    
+    # Temporary variable counter
+    counter = 1
+
+    # List to store intermediate results as tuples (temp_var, operand1, operator, operand2)
+    temp_vars = []
+
+    # Step 1: Handle 'u * u'
+    temp1, counter = generate_temp_var(counter)
+    temp_vars.append((temp1, "u", "*", "u"))
+    print(f"{temp1} = u * u")
+
+    # Step 2: Handle 'u * v'
+    temp2, counter = generate_temp_var(counter)
+    temp_vars.append((temp2, "u", "*", "v"))
+    print(f"{temp2} = u * v")
+
+    # Step 3: Handle 'v * v'
+    temp3, counter = generate_temp_var(counter)
+    temp_vars.append((temp3, "v", "*", "v"))
+    print(f"{temp3} = v * v")
+
+    # Step 4: Handle 'u*u - u*v'
+    temp4, counter = generate_temp_var(counter)
+    temp_vars.append((temp4, temp1, "-", temp2))
+    print(f"{temp4} = {temp1} - {temp2}")
+
+    # Step 5: Handle '(u*u - u*v) + v*v'
+    temp5, counter = generate_temp_var(counter)
+    temp_vars.append((temp5, temp4, "+", temp3))
+    print(f"{temp5} = {temp4} + {temp3}")
+
+    # Step 6: Assign final result to 'w'
+    print(f"w = {temp5}")
+
+if __name__ == "__main__":
+    main()
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
